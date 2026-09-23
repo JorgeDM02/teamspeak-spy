@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key, find_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class SpyError(Exception):
     """Raised when polling TeamSpeak or updating Discord fails."""
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Config:
     server_name: str
     query_api_key: str
@@ -72,18 +72,27 @@ def load_config() -> Config:
     server_name = (
         os.getenv("TS_SERVER_NAME", "TeamSpeak Server").strip() or "TeamSpeak Server"
     )
+
     query_api_key = _get_required("TS_QUERY_API_KEY")
     host = _get_required("TS_HTTP_SERVER_IP")
     port = _get_required("TS_HTTP_SERVER_PORT")
     webhook_url = _get_required("DISCORD_WEBHOOK_URL").rstrip("/")
-    message_id = _get_required("DISCORD_MESSAGE_ID")
-    return Config(
+    config = Config(
         server_name=server_name,
         query_api_key=query_api_key,
         base_url=_build_base_url(host, port),
         webhook_url=webhook_url,
-        message_id=message_id,
+        message_id="",
     )
+    if (
+        os.getenv("DISCORD_MESSAGE_ID") is None
+        or os.getenv("DISCORD_MESSAGE_ID").strip() == ""
+    ):
+        message_id = send_first_message(config)
+    else:
+        message_id = _get_required("DISCORD_MESSAGE_ID")
+    config.message_id = message_id
+    return config
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -132,6 +141,35 @@ def get_user_count(config: Config) -> int:
     return max(online - query_online, 0)
 
 
+def send_first_message(config: Config) -> None:
+    body = {
+        "content": "",
+        "embeds": [
+            {
+                "title": config.server_name,
+                "description": (
+                    "Settings things up, if this message persists, check console for errors."
+                ),
+            }
+        ],
+    }
+    try:
+        response = requests.post(
+            f"{config.webhook_url}?wait=true",
+            json=body,
+            timeout=config.timeout,
+        )
+        response.raise_for_status()
+        message_id = set_key(
+            dotenv_path=find_dotenv(),
+            key_to_set="DISCORD_MESSAGE_ID",
+            value_to_set=str(response.json()["id"]),
+        )
+        return message_id
+    except requests.RequestException as exc:
+        raise SpyError(f"Discord webhook update failed: {exc}") from exc
+
+
 def send_webhook_message(config: Config, user_count: int) -> None:
     cur_time = int(time.time())
     body = {
@@ -140,7 +178,7 @@ def send_webhook_message(config: Config, user_count: int) -> None:
             {
                 "title": config.server_name,
                 "description": (
-                    f"Currently has **{user_count}** users online.{'🟢' if user_count > 0 else '🔴'}\n"
+                    f"Currently has **{user_count}** user{'s' if user_count > 1 else ''} online.{'🟢' if user_count > 0 else '🔴'}\n"
                     f"Last updated at: <t:{cur_time}>"
                 ),
             }
@@ -153,7 +191,10 @@ def send_webhook_message(config: Config, user_count: int) -> None:
             timeout=config.timeout,
         )
         response.raise_for_status()
+
     except requests.RequestException as exc:
+        if response.status_code == 404:
+            send_first_message(config)
         raise SpyError(f"Discord webhook update failed: {exc}") from exc
 
 

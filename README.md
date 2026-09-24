@@ -33,4 +33,13 @@ Repeat every 60 seconds:
 teamspeak-spy --interval 60
 ```
 
+Alternatively, you can setup a cronjob to achieve similar results:
+
+```sh
+cronjob -e
+* * * * * path/to/script #Runs every minute
+0 * * * * path/to/script #Runs on the first minute of every hour
+```
+
+
 Exit code `2` = missing/invalid config, `1` = TeamSpeak/Discord request failed (single-run mode). In `--interval` mode transient failures are logged and the loop continues; `Ctrl+C` stops cleanly.

@@ -178,7 +178,7 @@ def send_webhook_message(config: Config, user_count: int) -> None:
             {
                 "title": config.server_name,
                 "description": (
-                    f"Currently has **{user_count}** user{'s' if user_count > 1 else ''} online.{'🟢' if user_count > 0 else '🔴'}\n"
+                    f"Currently has **{user_count}** user{'s' if user_count > 1 else ''} online. {'🟢' if user_count > 0 else '🔴'}\n"
                     f"Last updated at: <t:{cur_time}>"
                 ),
             }

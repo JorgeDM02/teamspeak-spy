@@ -2,7 +2,8 @@
 
 Poll a TeamSpeak 5 server (via its HTTP query API `serverlist` endpoint) and update a Discord webhook message with the current online user count.
 
-<img width="397" height="138" alt="imagen" src="https://github.com/user-attachments/assets/e780fc64-02d8-498c-8583-35390d351335" />
+<img width="401" height="135" alt="imagen" src="https://github.com/user-attachments/assets/765975ef-8fc8-4818-8558-1180b5ddc16d" />
+
 
 ## Setup
 
